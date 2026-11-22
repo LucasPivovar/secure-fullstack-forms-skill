@@ -65,6 +65,9 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/LucasPivovar/secure-fu
 ```text
 secure-fullstack-forms-skill/
 ├── SKILL.md                                   # Core instructions & 4-layer security rules for AI agents
+├── commands/
+│   ├── secure-form.md                         # /secure-form — Scaffold & wire an end-to-end hardened form
+│   └── audit-forms.md                         # /audit-forms — Scan codebase for hollow forms, SQLi & Mass Assignment
 ├── examples/
 │   ├── vue3-zod-secure-form.vue               # Vue 3 + TypeScript + Zod form with state lock & 422 mapping
 │   ├── nestjs-secure-dto.controller.ts        # NestJS DTO with whitelist ValidationPipe, Throttler & Prisma
@@ -72,6 +75,17 @@ secure-fullstack-forms-skill/
 └── references/
     └── security-audit-checklist.md            # Mandatory pre-completion security verification checklist
 ```
+
+---
+
+## ⚡ Slash Commands
+
+| Command | Description |
+| :--- | :--- |
+| **`/secure-form`** | Generates or wires a complete form end-to-end (Vue 3 + Zod + NestJS DTO / Laravel FormRequest + Parameterized ORM + Rate Limit). |
+| **`/audit-forms`** | Scans your existing repository for hollow `@submit` handlers, `$request->all()` Mass Assignment, raw SQL string interpolation, and missing throttling. |
+
+*(You can also trigger the skill naturally without commands—just ask your AI agent to create or refactor any form.)*
 
 ---
 

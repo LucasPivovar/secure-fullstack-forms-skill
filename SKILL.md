@@ -6,7 +6,11 @@ description: Enforces end-to-end form engineering, strict input sanitization, sc
 # Secure Full Stack Form Engineering (`secure-fullstack-forms`)
 
 ## When to Use This Skill
-Activate this skill whenever the user asks to:
+Activate this skill automatically or via slash commands:
+- **`/secure-form`** (`commands/secure-form.md`) — Build or wire a new end-to-end hardened form across Vue 3 + TypeScript and NestJS / Laravel.
+- **`/audit-forms`** (`commands/audit-forms.md`) — Scan an existing codebase for hollow forms, XSS, Mass Assignment (`$request->all()`), SQL Injection, and missing rate limits.
+
+Also activate automatically whenever the user asks to:
 - Create, wire, or refactor any form (`<form>`, login, registration, checkout, contact, filter, profile update, or multi-step wizard).
 - Connect a frontend form (Vue 3 / TypeScript) to a backend API endpoint (NestJS / Node.js / Laravel / PHP).
 - Fix broken form submissions, validation bugs, or security vulnerabilities.
