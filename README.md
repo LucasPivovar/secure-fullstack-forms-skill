@@ -1,62 +1,94 @@
-# 🛡️ Secure Full Stack Forms — AI Agent Skill (`SKILL.md`)
+# secure-fullstack-forms
 
-> **Stop shipping hollow, visual-only AI forms.**  
-> A production-grade AI Agent Skill (for **Cursor, Claude Code, Antigravity, and Windsurf**) that enforces end-to-end form engineering, strict payload whitelisting, and **SQL Injection / XSS / Mass Assignment** protection across **Vue.js (TypeScript)** frontends and **NestJS / Laravel** backends.
+An AI Agent Skill (`SKILL.md`) that prevents AI coding assistants from shipping hollow, visual-only forms or vulnerable backend endpoints.
 
-![Secure Full Stack Forms Architecture](./assets/slide-1-cover-illustrated.png)
-
----
-
-## 🚨 The Problem: What Default AI Assistants Generate
-
-When you ask an AI coding assistant to build a form, it optimizes for visual speed—often leaving critical engineering and security gaps:
-
-1. **The "Hollow Shell" Frontend:** Styled inputs with an unwired `@submit.prevent="console.log(form)"`, missing loading locks, double-submit protection, and `422` field-level error mapping.
-2. **Blind Mass Assignment:** Backend controllers that pass raw payloads straight into ORM models (`User::create($request->all())` or unvalidated `req.body`), allowing attackers to inject fields like `{ "role": "admin" }`.
-3. **SQL Injection (SQLi) & XSS Risks:** Unsanitized strings or raw template literals interpolated directly inside database queries (`SELECT * FROM users WHERE email = '${email}'`).
+It enforces an end-to-end 4-layer engineering contract across **Vue.js (TypeScript)** frontends and **NestJS / Laravel** backends:
+1. **Frontend Client Guard:** Strict `Zod` schema validation, XSS tag stripping, `isSubmitting` double-submit locking, and `422` field-level error mapping.
+2. **Anti-Mass Assignment:** Enforces `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })` in NestJS and dedicated `FormRequest` (`$request->validated()`) in Laravel—blocking injected payload fields like `{ "role": "admin" }`.
+3. **Anti-SQL Injection (SQLi):** Forbids raw string interpolation inside SQL queries and enforces parameterized ORM bindings (`Prisma`, `TypeORM`, `Eloquent`).
+4. **Transport & Abuse Protection:** Enforces CSRF protection, endpoint rate-limiting (`ThrottlerGuard` / Laravel `throttle`), and safe production error responses.
 
 ---
 
-## ✅ What This Skill Enforces Automatically
+## 📦 Installation
 
-Once installed in your project, the agent is forbidden from marking any form feature complete until **all 4 security and architectural layers** are wired:
+This skill follows the open `SKILL.md` standard and works with **Claude Code**, **Antigravity**, **Cursor**, **Windsurf**, **GitHub Copilot**, and **OpenAI Codex**.
 
-| Layer | Boundary | Enforced Engineering Contract |
-| :--- | :--- | :--- |
-| **01** | **Client Guard (Vue 3 + TS)** | Strict `Zod` / `Valibot` schema validation before HTTP calls, XSS input sanitization, `isSubmitting` race-condition lock, and `422` field error mapping. |
-| **02** | **Payload Whitelisting** | **NestJS:** `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })` on every DTO.<br>**Laravel:** Dedicated `FormRequest` using `$request->validated()` only (`$request->all()` is strictly banned). |
-| **03** | **Database Persistence** | Zero raw SQL string interpolation. Enforces bound parameters across **Prisma**, **TypeORM**, and **Eloquent ORM**. |
-| **04** | **Transport & Abuse Guard** | Enforces CSRF verification, endpoint rate-limiting (`ThrottlerGuard` / `throttle:6,1`), and safe production error responses without stack-trace leaks. |
-
----
-
-## 📸 Visual Architecture Breakdown
-
-<p align="center">
-  <img src="./assets/slide-2-three-traps.png" width="48%" alt="3 Things AI Leaves Broken" />
-  <img src="./assets/slide-3-skill-rules.png" width="48%" alt="Inside the SKILL.md Rules" />
-</p>
-
----
-
-## 🚀 Quick Installation
-
-Drop the [`SKILL.md`](./SKILL.md) file into your project's AI agent skills directory:
+### Option 1: Install via `npx skills` CLI (Recommended)
 
 ```bash
-# Clone the skill into your project's agent skills folder
-mkdir -p .agents/skills/secure-fullstack-forms
-curl -o .agents/skills/secure-fullstack-forms/SKILL.md https://raw.githubusercontent.com/LucasPivovar/secure-fullstack-forms-skill/main/SKILL.md
+npx skills add LucasPivovar/secure-fullstack-forms-skill
 ```
 
-Or copy the contents of [`SKILL.md`](./SKILL.md) directly into:
-- **Antigravity / Claude Code:** `.agents/skills/secure-fullstack-forms/SKILL.md`
-- **Cursor Rules:** `.cursor/rules/secure-fullstack-forms.mdc`
+### Option 2: Install directly into your project (`.agents/skills`)
+
+```bash
+git clone https://github.com/LucasPivovar/secure-fullstack-forms-skill.git .agents/skills/secure-fullstack-forms
+```
+
+### Option 3: Single-file `curl` install (`SKILL.md` only)
+
+**Linux / macOS / Git Bash:**
+```bash
+mkdir -p .agents/skills/secure-fullstack-forms && \
+curl -fsSL https://raw.githubusercontent.com/LucasPivovar/secure-fullstack-forms-skill/main/SKILL.md \
+  -o .agents/skills/secure-fullstack-forms/SKILL.md
+```
+
+**Windows (PowerShell):**
+```powershell
+New-Item -ItemType Directory -Force -Path ".agents/skills/secure-fullstack-forms" | Out-Null
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/LucasPivovar/secure-fullstack-forms-skill/main/SKILL.md" -OutFile ".agents/skills/secure-fullstack-forms/SKILL.md"
+```
+
+### Option 4: Global installation (Available across all your repositories)
+
+- **Antigravity / Gemini:**
+  ```bash
+  git clone https://github.com/LucasPivovar/secure-fullstack-forms-skill.git ~/.gemini/config/skills/secure-fullstack-forms
+  ```
+- **Claude Code:**
+  ```bash
+  git clone https://github.com/LucasPivovar/secure-fullstack-forms-skill.git ~/.claude/skills/secure-fullstack-forms
+  ```
+- **Cursor (`.cursor/rules`):**
+  ```bash
+  mkdir -p .cursor/rules && \
+  curl -fsSL https://raw.githubusercontent.com/LucasPivovar/secure-fullstack-forms-skill/main/SKILL.md \
+    -o .cursor/rules/secure-fullstack-forms.mdc
+  ```
 
 ---
 
-## 👨‍💻 Author
+## 📂 Repository Structure
 
-**Lucas Pivovar** — Full Stack Developer (`Vue.js · TypeScript · Node.js · NestJS · Laravel`)
-- 🔗 [LinkedIn](https://www.linkedin.com/in/lucas-pivovar-a25b71337/)
-- 💻 [GitHub](https://github.com/LucasPivovar)
+```text
+secure-fullstack-forms-skill/
+├── SKILL.md                                   # Core instructions & 4-layer security rules for AI agents
+├── examples/
+│   ├── vue3-zod-secure-form.vue               # Vue 3 + TypeScript + Zod form with state lock & 422 mapping
+│   ├── nestjs-secure-dto.controller.ts        # NestJS DTO with whitelist ValidationPipe, Throttler & Prisma
+│   └── laravel-secure-form-request.php        # Laravel FormRequest using $request->validated() & Eloquent
+└── references/
+    └── security-audit-checklist.md            # Mandatory pre-completion security verification checklist
+```
+
+---
+
+## 🛠️ How It Works
+
+Once installed, your AI agent automatically loads `SKILL.md` whenever you ask it to create, wire, refactor, or review a form:
+
+> **Example Prompt:**  
+> *"Create a contact form in Vue 3 and wire it to our NestJS / Laravel backend."*
+
+Instead of generating a disconnected `<form @submit.prevent="console.log()">` or an insecure controller using `$request->all()`, the agent will automatically scaffold:
+1. The **Vue 3 + TypeScript** component with `Zod` validation, loading states, and field-level error handling.
+2. The **NestJS DTO** (`whitelist: true`, `forbidNonWhitelisted: true`) or **Laravel `FormRequest`** (`$request->validated()`).
+3. **Parameterized ORM queries** and **Rate Limiting** on the submission route.
+
+---
+
+## 📄 License
+
+MIT License — Created by [Lucas Pivovar](https://www.linkedin.com/in/lucas-pivovar-a25b71337/).

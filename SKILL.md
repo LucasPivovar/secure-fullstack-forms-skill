@@ -1,107 +1,134 @@
 ---
 name: secure-fullstack-forms
-description: Enforces end-to-end form engineering, strict input sanitization, schema validation, and SQL Injection / XSS / Mass Assignment protection across Vue.js (TypeScript) frontends and NestJS / Laravel backends. Never allow hollow visual-only forms in production.
+description: Enforces end-to-end form engineering, strict input sanitization, schema validation, and SQL Injection (SQLi), XSS, CSRF, and Mass Assignment protection across Vue.js (TypeScript) frontends and NestJS or Laravel backends. Use whenever creating, wiring, refactoring, or auditing web forms and form submission endpoints.
 ---
 
 # Secure Full Stack Form Engineering (`secure-fullstack-forms`)
 
-## Core Mandate
-Never generate a "visual-only" form (`@submit.prevent=""` or `console.log`). Every form built or refactored by the agent MUST be wired end-to-end across **4 mandatory layers**:
-1. **Frontend Client Validation & Sanitization (Vue 3 + TypeScript)**
-2. **Typed Transport & State Machine (Loading, Field Errors, Idempotency)**
-3. **Strict Backend Payload Whitelisting (NestJS DTO / Laravel FormRequest)**
-4. **Parameterized Database Execution (Zero Raw String Interpolation / SQLi Protection)**
+## When to Use This Skill
+Activate this skill whenever the user asks to:
+- Create, wire, or refactor any form (`<form>`, login, registration, checkout, contact, filter, profile update, or multi-step wizard).
+- Connect a frontend form (Vue 3 / TypeScript) to a backend API endpoint (NestJS / Node.js / Laravel / PHP).
+- Fix broken form submissions, validation bugs, or security vulnerabilities.
+- Audit existing forms for **SQL Injection (SQLi)**, **Cross-Site Scripting (XSS)**, **Mass Assignment**, or **CSRF**.
 
 ---
 
-## Layer 1: Vue 3 + TypeScript Frontend Contract
+## Core Engineering Mandate
+Never generate a "visual-only" hollow form (`@submit.prevent=""` or `console.log`). Every form built or touched by the agent MUST be wired end-to-end across **4 mandatory layers** before the task is complete:
 
-### Forbidden Patterns
-- ❌ `<form @submit.prevent="console.log(form)">` (Unwired hollow shell)
-- ❌ Rendering user input with `v-html` without DOMPurify sanitization (XSS vector)
-- ❌ Submitting untyped `any` objects directly to `axios.post()` / `fetch()`
-- ❌ Allowing double-submission when request is already in-flight
+1. **Layer 1 — Client Contract & State Machine (Vue 3 + TypeScript + Zod)**
+2. **Layer 2 — Transport, CSRF & Rate-Limit Abuse Guard**
+3. **Layer 3 — Strict Backend Payload Whitelisting (Anti-Mass Assignment)**
+4. **Layer 4 — Parameterized Persistence Only (Zero Raw SQL Interpolation)**
+
+---
+
+## Layer 1: Client Contract & State Machine (Vue 3 + TypeScript)
+
+### Strictly Forbidden
+- ❌ Unwired submit handlers (`@submit.prevent="console.log(form)"` or empty functions).
+- ❌ Rendering user-supplied strings with `v-html` without DOMPurify sanitization.
+- ❌ Sending untyped `any` payloads directly to `fetch` or `axios`.
+- ❌ Allowing concurrent submissions while a request is already in flight.
 
 ### Required Implementation
-1. **Schema Validation Before Network Call:** Validate and trim all fields using `zod` or `valibot`. Reject control characters, unexpected script tags (`<script>`, `javascript:`), and oversized strings (`max()`).
-2. **Complete UI State Machine:** Every form composable must expose:
-   - `isSubmitting: Ref<boolean>` (disables submit button to prevent race conditions)
-   - `fieldErrors: Ref<Record<string, string[]>>` (maps 422 backend validation errors back to specific inputs)
-   - `serverError: Ref<string | null>`
-3. **Never Trust Frontend Validation Alone:** Frontend validation is for UX and early payload hygiene; backend validation is the security boundary.
+1. **Pre-Flight Schema Validation (`zod` / `valibot`):**
+   - `.trim()` all text inputs.
+   - Enforce explicit `.min()` and `.max()` length bounds on every field (prevents buffer/payload DoS).
+   - Reject dangerous HTML/script tags (`/<[^>]*>/g`) or control characters in plain-text fields.
+2. **Complete UI Submission State Machine:**
+   - `isSubmitting: Ref<boolean>` — locks `<button :disabled="isSubmitting">` and blocks duplicate calls.
+   - `fieldErrors: Ref<Record<string, string[]>>` — maps backend `HTTP 422` validation errors directly to the corresponding input field.
+   - `serverError: Ref<string | null>` — safe user-facing fallback message for `5xx` or network errors.
 
-```typescript
-// composables/useSecureForm.ts
-import { ref } from 'vue';
-import { z } from 'zod';
-
-export const ContactPayloadSchema = z.object({
-  name: z.string().trim().min(2).max(120).regex(/^[^<>]*$/, 'Invalid characters detected'),
-  email: z.string().trim().email().max(255),
-  message: z.string().trim().min(10).max(2000),
-});
-
-export type ContactPayload = z.infer<typeof ContactPayloadSchema>;
-```
+See [`examples/vue3-zod-secure-form.vue`](./examples/vue3-zod-secure-form.vue) for the reference implementation.
 
 ---
 
-## Layer 2: Backend Strict Whitelisting (Anti-Mass Assignment)
+## Layer 2: Transport, CSRF & Rate-Limit Abuse Guard
+
+### Required Implementation
+1. **Rate Limiting / Throttling:**
+   - **NestJS:** Apply `@UseGuards(ThrottlerGuard)` and `@Throttle({ default: { limit: 5, ttl: 60000 } })` on public/sensitive form endpoints.
+   - **Laravel:** Apply `throttle:6,1` middleware on form submission routes.
+2. **CSRF & Credential Hygiene:**
+   - For cookie/session authentication (Laravel Sanctum / web routes), ensure `X-XSRF-TOKEN` or `@csrf` is verified.
+   - Never pass sensitive form tokens or passwords in URL query parameters (`GET`).
+3. **Error Response Hygiene:**
+   - Return structured `HTTP 422 Unprocessable Entity` for validation failures.
+   - Never leak database stack traces, table names, or raw SQL syntax errors in HTTP responses.
+
+---
+
+## Layer 3: Strict Backend Payload Whitelisting (Anti-Mass Assignment)
+
+Attackers routinely intercept form submissions in DevTools and inject extra JSON keys such as `{ "role": "admin", "is_verified": true, "balance": 99999 }`.
 
 ### Option A — NestJS (`class-validator` + `ValidationPipe`)
-- ❌ Never read raw `req.body` without a DTO.
-- ✅ Always enforce global or controller-level `ValidationPipe` with:
-  - `whitelist: true` (strips any injected properties like `role: 'admin'` or `isVerified: true`)
-  - `forbidNonWhitelisted: true` (throws `400 Bad Request` if unexpected fields are sent)
-  - `transform: true`
+- ❌ **Forbidden:** Reading raw `@Body() body: any` or passing unvalidated DTOs to services.
+- ✅ **Required:** Enable `ValidationPipe` with strict whitelisting:
+  ```typescript
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,            // Strips any property without a validator decorator
+      forbidNonWhitelisted: true, // Rejects request with HTTP 400 if extra fields are sent
+      transform: true,            // Auto-transforms payloads to typed DTO instances
+    }),
+  );
+  ```
 
-```typescript
-// main.ts / controller setup
-app.useGlobalPipes(
-  new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }),
-);
-```
+See [`examples/nestjs-secure-dto.controller.ts`](./examples/nestjs-secure-dto.controller.ts) for the reference implementation.
 
-### Option B — Laravel (`FormRequest`)
-- ❌ Never use `$request->all()` or `$request->input()` directly inside `Model::create()` or `Model::update()`.
-- ✅ Always generate a dedicated `FormRequest` class and pass **only** `$request->validated()`.
-- ✅ Explicitly define `$fillable` on Eloquent models (never set `$guarded = []`).
+### Option B — Laravel (`FormRequest` + `$fillable`)
+- ❌ **Forbidden:** `Model::create($request->all())`, `Model::update($request->input())`, or `$guarded = []`.
+- ✅ **Required:**
+  1. Generate a dedicated `FormRequest` class (`php artisan make:request`).
+  2. Retrieve **only** validated data via `$validated = $request->validated();`.
+  3. Define explicit `protected $fillable = [...]` on the Eloquent model (keep sensitive columns like `role`, `is_admin`, `email_verified_at` out of `$fillable`).
 
-```php
-// controller method
-public function store(StoreContactRequest $request): JsonResponse
-{
-    $validated = $request->validated(); // Strictly whitelisted fields only
-    $record = ContactSubmission::create($validated);
-
-    return response()->json(['data' => $record], 201);
-}
-```
+See [`examples/laravel-secure-form-request.php`](./examples/laravel-secure-form-request.php) for the reference implementation.
 
 ---
 
-## Layer 3: Database & SQL Injection (SQLi) Prevention
+## Layer 4: Parameterized Persistence Only (Anti-SQL Injection)
 
-### Forbidden Patterns
+Attackers test form inputs with payloads like `admin' OR '1'='1' --` or `'; DROP TABLE users; --`.
+
+### Strictly Forbidden
 - ❌ String concatenation or template literals inside SQL queries:
   - `await dataSource.query(\`SELECT * FROM users WHERE email = '\${dto.email}'\`)`
   - `DB::select("SELECT * FROM users WHERE email = '$email'")`
-- ❌ Raw `ORDER BY` or column names passed directly from query/form parameters without a strict enum allowlist.
+  - `User::whereRaw("email = '{$request->email}'")->first()`
+- ❌ Passing user input directly into dynamic column names or `ORDER BY` clauses without a strict `enum` allowlist.
 
 ### Required Implementation
-- ✅ **Always use ORM parameterized queries / prepared statements:**
-  - **NestJS (Prisma / TypeORM):** Use bound parameters (`where: { email: dto.email }` or `.where('user.email = :email', { email: dto.email })`).
-  - **Laravel (Eloquent / Query Builder):** Use Eloquent bindings (`User::where('email', $validated['email'])->first()`). If raw SQL is unavoidable, pass bindings as an array: `DB::select('SELECT * FROM users WHERE email = ?', [$validated['email']])`.
+- ✅ **NestJS (Prisma):**
+  ```typescript
+  await this.prisma.user.findUnique({ where: { email: dto.email } });
+  // Or if raw query is strictly required, use tagged template ($queryRaw uses prepared statements):
+  await this.prisma.$queryRaw`SELECT id, email FROM users WHERE email = ${dto.email}`;
+  ```
+- ✅ **NestJS (TypeORM):**
+  ```typescript
+  await this.userRepo
+    .createQueryBuilder('user')
+    .where('user.email = :email', { email: dto.email })
+    .getOne();
+  ```
+- ✅ **Laravel (Eloquent / Query Builder):**
+  ```php
+  $user = User::where('email', $validated['email'])->first();
+  // Or with parameter bindings in raw expressions:
+  $users = DB::select('SELECT id, email FROM users WHERE email = ?', [$validated['email']]);
+  ```
 
 ---
 
-## Layer 4: Abuse & Transport Protection Checklist
-Before marking any form feature complete, verify:
-- [ ] **CSRF Protection:** Enabled for cookie/session endpoints (Laravel Sanctum / CSRF token header).
-- [ ] **Rate Limiting:** Endpoint protected against brute-force/spam (`@Throttle()` in NestJS or `throttle:6,1` middleware in Laravel).
-- [ ] **HTTP 422 Field Mapping:** Backend validation errors return structured field keys that automatically highlight the corresponding `<input>` in Vue.js.
-- [ ] **No Sensitive Data Leakage:** Error responses in production never expose stack traces or raw SQL error messages.
+## Mandatory Verification Checklist
+Before completing any form task, run through [`references/security-audit-checklist.md`](./references/security-audit-checklist.md):
+- [ ] Frontend form validates schema via Zod/Valibot before sending network request.
+- [ ] Submit button locks (`isSubmitting`) during in-flight requests and maps `422` field errors.
+- [ ] Backend endpoint uses strict DTO whitelisting (`whitelist: true`) or Laravel `$request->validated()`.
+- [ ] Database queries use 100% bound/parameterized arguments (zero string interpolation in SQL).
+- [ ] Endpoint has rate limiting (`ThrottlerGuard` or `throttle` middleware) configured.
