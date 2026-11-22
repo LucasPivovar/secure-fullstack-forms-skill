@@ -1,24 +1,25 @@
-# Form Security & End-to-End Wiring Audit Checklist
+# Framework-Agnostic Form Security & Wiring Audit Checklist
 
-Run this audit before marking any form creation or refactoring task as complete.
+Run this audit before marking any form creation or refactoring task as complete—regardless of language or framework.
 
-## 1. Frontend (Vue 3 + TypeScript)
-- [ ] **No Hollow Submit:** `@submit.prevent` calls a real async handler connected to the API service.
-- [ ] **Pre-Flight Schema Validation:** Payload is validated and trimmed via `zod` or `valibot` before any HTTP request is dispatched.
-- [ ] **XSS Hygiene:** Plain-text inputs strip or reject `<` and `>` characters; `v-html` is never used on unescaped user input.
-- [ ] **In-Flight Locking:** `isSubmitting` disables inputs and the submit button while awaiting the response.
-- [ ] **422 Field Mapping:** Validation errors returned by the backend map cleanly to individual input error messages.
+## 1. Frontend Contract (Client Boundary)
+- [ ] **No Hollow Submit:** Form submit calls a real async API handler (zero `console.log` or empty handlers).
+- [ ] **Pre-Flight Schema Validation:** Payload is trimmed and validated with explicit `min`/`max` bounds before any network request.
+- [ ] **XSS Hygiene:** Plain-text inputs reject/escape `<` and `>` characters; raw HTML directives (`v-html`, `dangerouslySetInnerHTML`, `innerHTML`, `|safe`) are never used on unsanitized user input.
+- [ ] **In-Flight Locking:** Submit button and inputs lock while the request is pending to prevent double-submit race conditions.
+- [ ] **422 Field Mapping:** Backend validation errors map cleanly back to individual input fields.
 
 ## 2. Backend Whitelisting (Anti-Mass Assignment)
-- [ ] **NestJS:** `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })` is active and every DTO property has explicit `class-validator` decorators.
-- [ ] **Laravel:** Controller uses a dedicated `FormRequest` and reads **only** `$request->validated()`. Zero occurrences of `$request->all()` or `$guarded = []`.
+- [ ] **Dedicated Input Schema / DTO / FormRequest:** Endpoint accepts only explicitly whitelisted fields.
+- [ ] **Reject/Strip Extra Fields:** Unknown injected properties (e.g., `role: "admin"`, `is_verified: true`) are automatically stripped or rejected with HTTP `400`/`422`.
+- [ ] **Zero Raw Body Persistence:** No direct `Model.create(req.body)`, `$request->all()`, or `**request.json` writes exist.
 
 ## 3. Database Persistence (Anti-SQL Injection)
-- [ ] **Zero String Interpolation in SQL:** No template literals (`` `SELECT ... ${input}` ``) or PHP string concatenation (`"SELECT ... '$input'"`) exist in any query.
-- [ ] **Bound Parameters Only:** All queries use ORM methods (`Prisma`, `TypeORM`, `Eloquent`) or explicit parameter binding arrays (`?` / `:param`).
-- [ ] **Sort/Filter Allowlists:** Any dynamic `orderBy` or column filter is validated against a strict hardcoded `enum` allowlist.
+- [ ] **Zero String Interpolation in SQL:** No template literals, f-strings, or string concatenation exist inside any SQL query.
+- [ ] **Bound Parameters Only:** Every query uses ORM parameter bindings or prepared statement placeholders (`?`, `$1`, `:param`).
+- [ ] **Dynamic Column Allowlists:** Any user-driven `ORDER BY` or filter column is checked against a strict hardcoded enum allowlist.
 
 ## 4. Transport & Abuse Protection
-- [ ] **Rate Limiting:** Route is protected by `@Throttle()` / `ThrottlerGuard` (NestJS) or `throttle:X,Y` middleware (Laravel).
-- [ ] **CSRF Verification:** Session-based routes validate CSRF tokens.
-- [ ] **Safe Error Output:** Production error responses never leak SQL queries, table names, or stack traces.
+- [ ] **Rate Limiting:** Endpoint is protected against brute-force and spam flooding.
+- [ ] **CSRF Protection:** Enabled and verified for cookie/session-authenticated routes.
+- [ ] **Safe Error Output:** Production error responses never leak raw SQL messages, table names, or stack traces.

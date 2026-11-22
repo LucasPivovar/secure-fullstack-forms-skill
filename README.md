@@ -1,18 +1,18 @@
 # secure-fullstack-forms
 
-An AI Agent Skill (`SKILL.md`) that prevents AI coding assistants from shipping hollow, visual-only forms or vulnerable backend endpoints.
+A **framework-agnostic** AI Agent Skill (`SKILL.md`) that prevents AI coding assistants from shipping hollow, visual-only forms or vulnerable backend endpoints—working across **any language or stack** (**TypeScript/JS, Vue, React, Next.js, Angular, Svelte, Node.js, NestJS, PHP/Laravel, Python/FastAPI/Django, Go, Java/Spring, C#/.NET, Ruby**).
 
-It enforces an end-to-end 4-layer engineering contract across **Vue.js (TypeScript)** frontends and **NestJS / Laravel** backends:
-1. **Frontend Client Guard:** Strict `Zod` schema validation, XSS tag stripping, `isSubmitting` double-submit locking, and `422` field-level error mapping.
-2. **Anti-Mass Assignment:** Enforces `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })` in NestJS and dedicated `FormRequest` (`$request->validated()`) in Laravel—blocking injected payload fields like `{ "role": "admin" }`.
-3. **Anti-SQL Injection (SQLi):** Forbids raw string interpolation inside SQL queries and enforces parameterized ORM bindings (`Prisma`, `TypeORM`, `Eloquent`).
-4. **Transport & Abuse Protection:** Enforces CSRF protection, endpoint rate-limiting (`ThrottlerGuard` / Laravel `throttle`), and safe production error responses.
+It automatically detects your repository's stack and enforces an end-to-end **4-layer security & wiring contract**:
+1. **Frontend Client Guard:** Pre-flight schema validation, XSS hygiene, in-flight submit locking, and `422` field-level error mapping.
+2. **Anti-Mass Assignment:** Enforces strict payload whitelisting (DTO / Schema / FormRequest)—blocking injected fields like `{ "role": "admin" }`.
+3. **Anti-SQL Injection (SQLi):** Forbids raw string interpolation inside SQL queries and enforces parameterized queries / bound ORM parameters.
+4. **Transport & Abuse Protection:** Enforces CSRF protection, endpoint rate-limiting, and safe production error responses without stack-trace leaks.
 
 ---
 
 ## 📦 Installation
 
-This skill follows the open `SKILL.md` standard and works with **Claude Code**, **Antigravity**, **Cursor**, **Windsurf**, **GitHub Copilot**, and **OpenAI Codex**.
+Follows the open `SKILL.md` standard—compatible with **Claude Code**, **Antigravity**, **Cursor**, **Windsurf**, **GitHub Copilot**, and **OpenAI Codex**.
 
 ### Option 1: Install via `npx skills` CLI (Recommended)
 
@@ -26,7 +26,7 @@ npx skills add LucasPivovar/secure-fullstack-forms-skill
 git clone https://github.com/LucasPivovar/secure-fullstack-forms-skill.git .agents/skills/secure-fullstack-forms
 ```
 
-### Option 3: Single-file `curl` install (`SKILL.md` only)
+### Option 3: Single-file install (`SKILL.md` only)
 
 **Linux / macOS / Git Bash:**
 ```bash
@@ -41,7 +41,7 @@ New-Item -ItemType Directory -Force -Path ".agents/skills/secure-fullstack-forms
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/LucasPivovar/secure-fullstack-forms-skill/main/SKILL.md" -OutFile ".agents/skills/secure-fullstack-forms/SKILL.md"
 ```
 
-### Option 4: Global installation (Available across all your repositories)
+### Option 4: Global installation (All repositories)
 
 - **Antigravity / Gemini:**
   ```bash
@@ -60,46 +60,32 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/LucasPivovar/secure-fu
 
 ---
 
-## 📂 Repository Structure
-
-```text
-secure-fullstack-forms-skill/
-├── SKILL.md                                   # Core instructions & 4-layer security rules for AI agents
-├── commands/
-│   ├── secure-form.md                         # /secure-form — Scaffold & wire an end-to-end hardened form
-│   └── audit-forms.md                         # /audit-forms — Scan codebase for hollow forms, SQLi & Mass Assignment
-├── examples/
-│   ├── vue3-zod-secure-form.vue               # Vue 3 + TypeScript + Zod form with state lock & 422 mapping
-│   ├── nestjs-secure-dto.controller.ts        # NestJS DTO with whitelist ValidationPipe, Throttler & Prisma
-│   └── laravel-secure-form-request.php        # Laravel FormRequest using $request->validated() & Eloquent
-└── references/
-    └── security-audit-checklist.md            # Mandatory pre-completion security verification checklist
-```
-
----
-
 ## ⚡ Slash Commands
 
 | Command | Description |
 | :--- | :--- |
-| **`/secure-form`** | Generates or wires a complete form end-to-end (Vue 3 + Zod + NestJS DTO / Laravel FormRequest + Parameterized ORM + Rate Limit). |
-| **`/audit-forms`** | Scans your existing repository for hollow `@submit` handlers, `$request->all()` Mass Assignment, raw SQL string interpolation, and missing throttling. |
+| **`/secure-form`** | Auto-detects your stack and builds/wires a complete end-to-end hardened form (client validation + UI state lock + strict backend whitelisting + parameterized DB + rate limiting). |
+| **`/audit-forms`** | Scans any repository for hollow submit handlers, XSS vectors, Mass Assignment (`req.body`, `$request->all()`), raw SQL string interpolation, and missing throttling. |
 
-*(You can also trigger the skill naturally without commands—just ask your AI agent to create or refactor any form.)*
+*(The skill also activates automatically whenever you ask your AI agent to create, wire, or refactor any form.)*
 
 ---
 
-## 🛠️ How It Works
+## 📂 Repository Structure
 
-Once installed, your AI agent automatically loads `SKILL.md` whenever you ask it to create, wire, refactor, or review a form:
-
-> **Example Prompt:**  
-> *"Create a contact form in Vue 3 and wire it to our NestJS / Laravel backend."*
-
-Instead of generating a disconnected `<form @submit.prevent="console.log()">` or an insecure controller using `$request->all()`, the agent will automatically scaffold:
-1. The **Vue 3 + TypeScript** component with `Zod` validation, loading states, and field-level error handling.
-2. The **NestJS DTO** (`whitelist: true`, `forbidNonWhitelisted: true`) or **Laravel `FormRequest`** (`$request->validated()`).
-3. **Parameterized ORM queries** and **Rate Limiting** on the submission route.
+```text
+secure-fullstack-forms-skill/
+├── SKILL.md                                   # Universal, framework-agnostic 4-layer form security rules
+├── commands/
+│   ├── secure-form.md                         # /secure-form — Scaffold & wire an end-to-end hardened form
+│   └── audit-forms.md                         # /audit-forms — Audit any codebase for hollow forms, SQLi & Mass Assignment
+├── examples/                                  # Concrete reference implementations
+│   ├── vue3-zod-secure-form.vue               # Frontend reference (Vue 3 + TypeScript + Zod)
+│   ├── nestjs-secure-dto.controller.ts        # Node/TypeScript backend reference (NestJS + Prisma)
+│   └── laravel-secure-form-request.php        # PHP backend reference (Laravel FormRequest + Eloquent)
+└── references/
+    └── security-audit-checklist.md            # Mandatory pre-completion OWASP form verification checklist
+```
 
 ---
 
